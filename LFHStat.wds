@@ -1,0 +1,117 @@
+$$ statistic the released size in low fragment heap
+$$ written by Michael Gu
+
+.block
+
+{
+	r $t17 = 0;
+	r $t16 = 0;
+	r $t15 = 0;
+	r $t14 = 0;
+	
+	.printf "Stat heap:%p\n", ${$arg1};
+	
+	$$ Encoding of heap entry
+	r $t2 = wo(${$arg1} + 0x088);
+	r $t3 = by(${$arg1} + 0x08a);
+	$$.printf "FlagMask:%x\n", @$t3;
+	
+	$$ the end heap segment
+	r $t19 = poi(${$arg1} + 0x020) - 0x018;
+	
+	$$ current heap segment for loop
+	r $t18 = ${$arg1};
+	
+	.while (@$t18 != @$t19)
+	{
+		.printf "Stat heap segment:%p\n", @$t18;
+		
+		$$ FirstEntry of heap
+		r $t0 = poi(@$t18 + 0x040);
+		$$.printf "FirstEntry:%p\n", @$t0;
+		
+		$$ LastValidEntry of heap
+		r $t1 = poi(@$t18 + 0x048);
+		$$.printf "LastEntry:%p\n", @$t1;
+		
+		$$ uncommitted entry
+		r $t8 = poi(@$t18 + 0x068);
+		
+		.while (@$t0 < @$t1)
+		{
+			$$.printf "Heap entry:%p\n", @$t0;
+			
+			.if (@$t8 - 0x20 == @$t0)
+			{
+				r $t0 = poi(@$t8 + 0x010) + poi(@$t8 + 0x018);
+				r $t8 = poi(@$t8 + 0x08);
+				.continue;
+			}
+			
+			$$ len
+			r $t4 = wo(@$t0 + 0x08);
+			r $t4 = @$t4 xor @$t2;
+			r $t4 = @$t4 * 0x010;
+			
+			$$ LFH flag
+			r $t5 = by(@$t0 + 0x0a);
+			$$.printf "LFH Flag:%x\n", @$t5;
+			r $t5 = (@$t5 xor @$t3) & 0x08;
+			
+			.if (@$t5 > 0)
+			{
+				$$.printf "LFH entry:%p\n", @$t0;
+				.printf "Stat LFH entry:%p, size:%p\n", @$t0, @$t4;
+				
+				$$ user block size
+				.if (poi(@$t0 + 0x010) == 0)
+				{
+					.printf "Invalid user data header\n"; 
+					r $t0 = @$t0 + @$t4;
+					.continue;
+				}
+				r $t6 = wo(poi(@$t0 + 0x010) + 0x018) * 0x010;
+				
+				$$.printf  "Block size:%x\n", @$t6; 
+				
+				.if (@$t6 > @$t4 or @$t6 <= 0)
+				{
+					.printf "Strange block size:%x\n", @$t6; 
+					r $t0 = @$t0 + @$t4;
+					.continue;
+				}
+				
+				$$ index address
+				r $t7 = @$t0 + 0x030 + 0x0f;
+				
+				.while (@$t7 < @$t0 + @$t4)
+				{
+					.if (by(@$t7) > 0x080)
+					{
+						$$ busy user block
+						r $t14 = @$t14 + 1;
+						r $t15 = @$t15 + @$t6;
+					}
+					.else
+					{
+						$$ released user block
+						r $t16 = @$t16 + 1;
+						r $t17 = @$t17 + @$t6;
+					}
+					
+					$$.printf "Busy user block count:%x, size:%x\n", @$t14, @$t15;
+					$$.printf "Released user block count:%x, size:%x\n", @$t16, @$t17;
+					
+					r $t7 = @$t7 + @$t6;
+				}
+			}
+			
+			r $t0 = @$t0 + @$t4;
+		}
+		
+		r $t18 = poi(@$t18 + 0x018) - 0x018;
+	}
+	
+	.printf "Busy user block count:%x, size:%x\n", @$t14, @$t15;
+	.printf "Released user block count:%x, size:%x\n", @$t16, @$t17;
+}
