@@ -11,6 +11,9 @@ LFH is default enable after windows vista, heap manager will create a chunk of h
 
 | _HEAP_ENTRY | _HEAP_USERDATA_HEADER | user data | ... | user data |
 
+When one of user data is not released, the whole chunk of memory will not be released.
+And this script will statistic how many block is released and how many is buzy in LFH.
+
 LFH will disable in some condition:
 
 *page heap is enable
